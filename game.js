@@ -1,7 +1,8 @@
-let scene, camera, renderer, enemy, knife;
+let scene, camera, renderer, enemy, knife, redOverlay;
 let keys = {};
 let gameStarted = false;
 let caught = false;
+let stabFrame = 0;
 
 function startGame() {
   document.getElementById("overlay").style.display = "none";
@@ -64,30 +65,15 @@ function init() {
   wallFront.position.set(0, 1.5, 10);
   scene.add(wallFront);
 
-  // Security Cameras - more of them!
+  // Security Cameras
   for (let i = -8; i <= 8; i += 2.5) {
-    const cam1 = createSecurityCamera();
-    cam1.position.set(-9.8, 2.5, i);
-    cam1.rotation.y = Math.PI / 2;
-    scene.add(cam1);
-
-    const cam2 = createSecurityCamera();
-    cam2.position.set(9.8, 2.5, i);
-    cam2.rotation.y = -Math.PI / 2;
-    scene.add(cam2);
-
-    const cam3 = createSecurityCamera();
-    cam3.position.set(i, 2.5, -9.8);
-    cam3.rotation.y = 0;
-    scene.add(cam3);
-
-    const cam4 = createSecurityCamera();
-    cam4.position.set(i, 2.5, 9.8);
-    cam4.rotation.y = Math.PI;
-    scene.add(cam4);
+    scene.add(makeCamera(-9.8, 2.5, i, Math.PI / 2));
+    scene.add(makeCamera(9.8, 2.5, i, -Math.PI / 2));
+    scene.add(makeCamera(i, 2.5, -9.8, 0));
+    scene.add(makeCamera(i, 2.5, 9.8, Math.PI));
   }
 
-  // Enemy (teacher with knife)
+  // Enemy
   enemy = new THREE.Group();
 
   const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1.5, 0.5), new THREE.MeshStandardMaterial({ color: 0xaa0000 }));
@@ -111,25 +97,30 @@ function init() {
 
   document.addEventListener("keydown", (e) => keys[e.key.toLowerCase()] = true);
   document.addEventListener("keyup", (e) => keys[e.key.toLowerCase()] = false);
+
+  // Red overlay div
+  redOverlay = document.createElement("div");
+  redOverlay.style.position = "fixed";
+  redOverlay.style.top = 0;
+  redOverlay.style.left = 0;
+  redOverlay.style.width = "100vw";
+  redOverlay.style.height = "100vh";
+  redOverlay.style.background = "rgba(255, 0, 0, 0)";
+  redOverlay.style.zIndex = 10;
+  redOverlay.style.pointerEvents = "none";
+  document.body.appendChild(redOverlay);
 }
 
-function createSecurityCamera() {
+function makeCamera(x, y, z, rotY) {
   const cam = new THREE.Group();
-
-  const base = new THREE.Mesh(
-    new THREE.BoxGeometry(0.3, 0.2, 0.3),
-    new THREE.MeshStandardMaterial({ color: 0x222222 })
-  );
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.3), new THREE.MeshStandardMaterial({ color: 0x222222 }));
   cam.add(base);
-
-  const lens = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8),
-    new THREE.MeshStandardMaterial({ color: 0x1111ff })
-  );
+  const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8), new THREE.MeshStandardMaterial({ color: 0x1111ff }));
   lens.rotation.z = Math.PI / 2;
   lens.position.z = 0.25;
   cam.add(lens);
-
+  cam.position.set(x, y, z);
+  cam.rotation.y = rotY;
   return cam;
 }
 
@@ -155,7 +146,6 @@ function handleMovement() {
   if (keys["a"]) newX -= speed;
   if (keys["d"]) newX += speed;
 
-  // Wall boundaries
   if (newX > -9.5 && newX < 9.5) camera.position.x = newX;
   if (newZ > -9.5 && newZ < 9.5) camera.position.z = newZ;
 }
@@ -166,13 +156,13 @@ function moveEnemy() {
   const dist = Math.sqrt(dx * dx + dz * dz);
 
   if (dist > 0.2) {
-    enemy.position.x += (dx / dist) * 0.035; // faster enemy
+    enemy.position.x += (dx / dist) * 0.035;
     enemy.position.z += (dz / dist) * 0.035;
   }
 
-  if (dist < 1.5 && !caught) {
+  if (dist < 1.3 && !caught) {
     caught = true;
-    playCutscene();
+    playStabCutscene();
   }
 }
 
@@ -180,21 +170,40 @@ function animateKnife() {
   knife.rotation.z = Math.sin(Date.now() * 0.01) * 0.8;
 }
 
-function playCutscene() {
-  const interval = setInterval(() => {
-    enemy.position.lerp(camera.position, 0.1);
-    knife.rotation.z += 0.3;
+function playStabCutscene() {
+  let stabCount = 0;
+  let maxStabs = 5;
 
-    const dx = camera.position.x - enemy.position.x;
-    const dz = camera.position.z - enemy.position.z;
-    const dist = Math.sqrt(dx * dx + dz * dz);
+  const stabInterval = setInterval(() => {
+    // Zoom in and center on enemy
+    camera.lookAt(enemy.position);
+    enemy.lookAt(camera.position);
 
-    if (dist < 0.6) {
-      clearInterval(interval);
+    // Enemy lunges and stabs
+    enemy.position.lerp(camera.position, 0.15);
+    knife.rotation.z = Math.random() > 0.5 ? 1 : -1;
+
+    // Flash red
+    redOverlay.style.background = "rgba(255, 0, 0, 0.3)";
+    setTimeout(() => {
+      redOverlay.style.background = "rgba(255, 0, 0, 0)";
+    }, 100);
+
+    stabCount++;
+    if (stabCount >= maxStabs) {
+      clearInterval(stabInterval);
       setTimeout(() => {
-        alert("You were stabbed by the teacher in surgery detention...");
-        window.location.reload();
+        fadeToBlack();
       }, 800);
     }
-  }, 50);
+  }, 600);
+}
+
+function fadeToBlack() {
+  redOverlay.style.transition = "1s ease";
+  redOverlay.style.background = "black";
+  setTimeout(() => {
+    alert("You were stabbed by the teacher in surgery detention...");
+    window.location.reload();
+  }, 1500);
 }
