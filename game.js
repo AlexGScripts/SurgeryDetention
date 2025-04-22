@@ -1,33 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Surgery Detention</title>
-  <style>
-    body { margin: 0; overflow: hidden; background: #000; }
-    canvas { display: block; }
-    #overlay {
-      position: fixed; top: 0; left: 0;
-      width: 100vw; height: 100vh;
-      background: black;
-      display: flex; align-items: center; justify-content: center;
-      color: white; font-size: 3em; z-index: 10;
-      cursor: pointer;
-    }
-  </style>
-</head>
-<body>
-  <div id="overlay" onclick="startGame()">Click to Start</div>
-  <canvas id="game"></canvas>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.min.js"></script>
-  <script>
-let scene, camera, renderer, enemy, knife, redOverlay, winDoor, secondWinDoor;
+let scene, camera, renderer, enemy, knife, winDoor, secondWinDoor;
 let keys = {}, gameStarted = false, caught = false, camYaw = 0, camPitch = 0;
 let currentLevel = 1;
 
 function startGame() {
-  document.getElementById("overlay").style.display = "none";
   gameStarted = true;
+  caught = false;
   init();
   animate();
 }
@@ -49,15 +26,15 @@ function init() {
   const ambient = new THREE.AmbientLight(0x888888);
   scene.add(ambient);
 
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(50, 0.1, 50), new THREE.MeshStandardMaterial({ color: 0x2a2a2a }));
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(50, 0.1, 100), new THREE.MeshStandardMaterial({ color: 0x2a2a2a }));
   scene.add(floor);
 
-  const ceiling = new THREE.Mesh(new THREE.BoxGeometry(50, 0.1, 50), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
+  const ceiling = new THREE.Mesh(new THREE.BoxGeometry(50, 0.1, 100), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
   ceiling.position.y = 3;
   scene.add(ceiling);
 
   const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x444444 });
-  const wallLeft = new THREE.Mesh(new THREE.BoxGeometry(0.1, 3, 50), wallMaterial);
+  const wallLeft = new THREE.Mesh(new THREE.BoxGeometry(0.1, 3, 100), wallMaterial);
   wallLeft.position.set(-10, 1.5, 0);
   scene.add(wallLeft);
 
@@ -66,11 +43,11 @@ function init() {
   scene.add(wallRight);
 
   const wallBack = new THREE.Mesh(new THREE.BoxGeometry(20, 3, 0.1), wallMaterial);
-  wallBack.position.set(0, 1.5, -10);
+  wallBack.position.set(0, 1.5, -49.95);
   scene.add(wallBack);
 
   const wallFront = wallBack.clone();
-  wallFront.position.set(0, 1.5, 10);
+  wallFront.position.set(0, 1.5, 49.95);
   scene.add(wallFront);
 
   winDoor = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.1), new THREE.MeshStandardMaterial({ color: 0x00ff00 }));
@@ -78,7 +55,7 @@ function init() {
   scene.add(winDoor);
 
   secondWinDoor = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.1), new THREE.MeshStandardMaterial({ color: 0x00ff00 }));
-  secondWinDoor.position.set(0, 1, 30);
+  secondWinDoor.position.set(0, 1, 40);
   secondWinDoor.visible = false;
   scene.add(secondWinDoor);
 
@@ -108,17 +85,6 @@ function init() {
 
   enemy.position.set(0, 0, -5);
   scene.add(enemy);
-
-  redOverlay = document.createElement("div");
-  redOverlay.style.position = "fixed";
-  redOverlay.style.top = 0;
-  redOverlay.style.left = 0;
-  redOverlay.style.width = "100vw";
-  redOverlay.style.height = "100vh";
-  redOverlay.style.background = "rgba(255, 0, 0, 0)";
-  redOverlay.style.zIndex = 10;
-  redOverlay.style.pointerEvents = "none";
-  document.body.appendChild(redOverlay);
 
   document.addEventListener("keydown", (e) => keys[e.key.toLowerCase()] = true);
   document.addEventListener("keyup", (e) => keys[e.key.toLowerCase()] = false);
@@ -151,12 +117,10 @@ function animate() {
 
 function handleMovement() {
   const speed = 0.1;
-
   const forward = new THREE.Vector3();
   camera.getWorldDirection(forward);
   forward.y = 0;
   forward.normalize();
-
   const right = new THREE.Vector3();
   right.crossVectors(forward, camera.up).normalize();
 
@@ -195,8 +159,8 @@ function moveEnemy() {
   const dist = Math.sqrt(dx * dx + dz * dz);
 
   if (dist > 0.2) {
-    enemy.position.x += (dx / dist) * 0.08;
-    enemy.position.z += (dz / dist) * 0.08;
+    enemy.position.x += (dx / dist) * 0.1;  // Faster speed for teacher
+    enemy.position.z += (dz / dist) * 0.1;
   }
 
   if (dist < 1.3 && !caught) {
@@ -214,7 +178,7 @@ function checkWinCondition() {
 
   if (currentLevel === 1 && dist(camera, winDoor) < 1.5) {
     currentLevel = 2;
-    camera.position.set(0, 1.6, 20);
+    camera.position.set(0, 1.6, 30);
     winDoor.visible = false;
     secondWinDoor.visible = true;
   } else if (currentLevel === 2 && dist(camera, secondWinDoor) < 1.5) {
@@ -233,7 +197,6 @@ function playStabCutscene() {
     enemy.position.lerp(camera.position, 0.15);
     knife.rotation.z = Math.random() > 0.5 ? 1 : -1;
 
-    redOverlay.style.background = "rgba(255, 0, 0, 0.3)";
     setTimeout(() => redOverlay.style.background = "rgba(255, 0, 0, 0)", 100);
 
     stabCount++;
@@ -252,6 +215,3 @@ function fadeToBlack() {
     window.location.reload();
   }, 1500);
 }
-  </script>
-</body>
-</html>
