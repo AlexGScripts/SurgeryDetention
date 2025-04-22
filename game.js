@@ -5,6 +5,7 @@ let caught = false;
 
 let camYaw = 0;
 let camPitch = 0;
+let winDoor;
 
 function startGame() {
   document.getElementById("overlay").style.display = "none";
@@ -23,7 +24,6 @@ function init() {
   renderer = new THREE.WebGLRenderer({ canvas: document.getElementById("game") });
   renderer.setSize(window.innerWidth, window.innerHeight);
 
-  // Audio listener and stab sound
   listener = new THREE.AudioListener();
   camera.add(listener);
 
@@ -34,7 +34,6 @@ function init() {
     stabSound.setVolume(0.5);
   });
 
-  // Lighting
   const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
   dirLight.position.set(5, 10, 5);
   scene.add(dirLight);
@@ -42,7 +41,6 @@ function init() {
   const ambient = new THREE.AmbientLight(0xffffff, 0.6);
   scene.add(ambient);
 
-  // Floor, ceiling, walls
   const floor = new THREE.Mesh(new THREE.BoxGeometry(20, 0.1, 20), new THREE.MeshStandardMaterial({ color: 0x333333 }));
   scene.add(floor);
 
@@ -68,7 +66,6 @@ function init() {
   wallFront.position.set(0, 1.5, 10);
   scene.add(wallFront);
 
-  // Cameras
   for (let i = -8; i <= 8; i += 2.5) {
     scene.add(makeCamera(-9.8, 2.5, i, Math.PI / 2));
     scene.add(makeCamera(9.8, 2.5, i, -Math.PI / 2));
@@ -76,14 +73,10 @@ function init() {
     scene.add(makeCamera(i, 2.5, 9.8, Math.PI));
   }
 
-  // Win zone door (smaller, harder to hit)
-  const winDoor = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.1), new THREE.MeshStandardMaterial({ color: 0x00ff00 }));
+  winDoor = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.1), new THREE.MeshStandardMaterial({ color: 0x00ff00 }));
   winDoor.position.set(0, 1, -9.95);
   scene.add(winDoor);
 
-  winDoor.name = "winDoor";
-
-  // Enemy setup
   enemy = new THREE.Group();
   const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1.5, 0.5), new THREE.MeshStandardMaterial({ color: 0xaa0000 }));
   body.position.y = 0.75;
@@ -104,7 +97,6 @@ function init() {
   enemy.position.set(0, 0, -5);
   scene.add(enemy);
 
-  // Red overlay for damage effect
   redOverlay = document.createElement("div");
   redOverlay.style.position = "fixed";
   redOverlay.style.top = 0;
@@ -191,7 +183,7 @@ function moveEnemy() {
   const dist = Math.sqrt(dx * dx + dz * dz);
 
   if (dist > 0.2) {
-    enemy.position.x += (dx / dist) * 0.045; // Faster movement
+    enemy.position.x += (dx / dist) * 0.045;
     enemy.position.z += (dz / dist) * 0.045;
   }
 
@@ -237,8 +229,10 @@ function fadeToBlack() {
   }, 1500);
 }
 
+// ✅ FIXED WIN CHECK HERE
 function checkWinCondition() {
-  if (camera.position.z <= -9.6 && Math.abs(camera.position.x) <= 0.6) {
+  const winDistance = 1.2;
+  if (camera.position.distanceTo(winDoor.position) < winDistance) {
     alert("You escaped Surgery Detention!");
     window.location.reload();
   }
