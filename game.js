@@ -42,51 +42,32 @@ function init() {
   const ambient = new THREE.AmbientLight(0xffffff, 0.6);
   scene.add(ambient);
 
-  createMap();
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(20, 0.1, 20), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+  scene.add(floor);
 
-  redOverlay = document.createElement("div");
-  redOverlay.style.position = "fixed";
-  redOverlay.style.top = 0;
-  redOverlay.style.left = 0;
-  redOverlay.style.width = "100vw";
-  redOverlay.style.height = "100vh";
-  redOverlay.style.background = "rgba(255, 0, 0, 0)";
-  redOverlay.style.zIndex = 10;
-  redOverlay.style.pointerEvents = "none";
-  document.body.appendChild(redOverlay);
+  const ceiling = new THREE.Mesh(new THREE.BoxGeometry(20, 0.1, 20), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
+  ceiling.position.y = 3;
+  scene.add(ceiling);
 
-  document.addEventListener("keydown", (e) => keys[e.key.toLowerCase()] = true);
-  document.addEventListener("keyup", (e) => keys[e.key.toLowerCase()] = false);
-}
+  const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x444444, emissive: 0x222222 });
 
-function createMap() {
+  const wallLeft = new THREE.Mesh(new THREE.BoxGeometry(0.1, 3, 20), wallMaterial);
+  wallLeft.position.set(-10, 1.5, 0);
+  scene.add(wallLeft);
+
+  const wallRight = wallLeft.clone();
+  wallRight.position.set(10, 1.5, 0);
+  scene.add(wallRight);
+
+  const wallBack = new THREE.Mesh(new THREE.BoxGeometry(20, 3, 0.1), wallMaterial);
+  wallBack.position.set(0, 1.5, -10);
+  scene.add(wallBack);
+
+  const wallFront = wallBack.clone();
+  wallFront.position.set(0, 1.5, 10);
+  scene.add(wallFront);
+
   if (level === 1) {
-    // Level 1 Map
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(20, 0.1, 20), new THREE.MeshStandardMaterial({ color: 0x333333 }));
-    scene.add(floor);
-
-    const ceiling = new THREE.Mesh(new THREE.BoxGeometry(20, 0.1, 20), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
-    ceiling.position.y = 3;
-    scene.add(ceiling);
-
-    const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x444444, emissive: 0x222222 });
-
-    const wallLeft = new THREE.Mesh(new THREE.BoxGeometry(0.1, 3, 20), wallMaterial);
-    wallLeft.position.set(-10, 1.5, 0);
-    scene.add(wallLeft);
-
-    const wallRight = wallLeft.clone();
-    wallRight.position.set(10, 1.5, 0);
-    scene.add(wallRight);
-
-    const wallBack = new THREE.Mesh(new THREE.BoxGeometry(20, 3, 0.1), wallMaterial);
-    wallBack.position.set(0, 1.5, -10);
-    scene.add(wallBack);
-
-    const wallFront = wallBack.clone();
-    wallFront.position.set(0, 1.5, 10);
-    scene.add(wallFront);
-
     for (let i = -8; i <= 8; i += 2.5) {
       scene.add(makeCamera(-9.8, 2.5, i, Math.PI / 2));
       scene.add(makeCamera(9.8, 2.5, i, -Math.PI / 2));
@@ -98,21 +79,34 @@ function createMap() {
     winDoor.position.set(0, 1, -9.95);
     scene.add(winDoor);
 
+    const bed = new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 2), new THREE.MeshStandardMaterial({ color: 0xaaaaaa }));
+    bed.position.set(0, 0.25, 0);
+    scene.add(bed);
   } else if (level === 2) {
-    // Level 2 Map (new map)
-    // You can create a different layout or design for level 2 here
-    const floor = new THREE.Mesh(new THREE.BoxGeometry(20, 0.1, 20), new THREE.MeshStandardMaterial({ color: 0x888888 }));
-    scene.add(floor);
+    // New environment for Level 2
+    const newFloor = new THREE.Mesh(new THREE.BoxGeometry(20, 0.1, 20), new THREE.MeshStandardMaterial({ color: 0x555555 }));
+    scene.add(newFloor);
 
-    // Custom Level 2 walls and objects
-    // You can add walls, obstacles, or anything else here to make it unique
-    const winDoorLevel2 = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.1), new THREE.MeshStandardMaterial({ color: 0x0000ff }));
-    winDoorLevel2.position.set(0, 1, -9.95);
-    scene.add(winDoorLevel2);
-    winDoor = winDoorLevel2;
+    const newCeiling = new THREE.Mesh(new THREE.BoxGeometry(20, 0.1, 20), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+    newCeiling.position.y = 3;
+    scene.add(newCeiling);
+
+    for (let i = -8; i <= 8; i += 2.5) {
+      scene.add(makeCamera(-9.8, 2.5, i, Math.PI / 2));
+      scene.add(makeCamera(9.8, 2.5, i, -Math.PI / 2));
+      scene.add(makeCamera(i, 2.5, -9.8, 0));
+      scene.add(makeCamera(i, 2.5, 9.8, Math.PI));
+    }
+
+    winDoor = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.1), new THREE.MeshStandardMaterial({ color: 0xff0000 }));
+    winDoor.position.set(0, 1, -9.95);
+    scene.add(winDoor);
+
+    const bed = new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 2), new THREE.MeshStandardMaterial({ color: 0xaaaaaa }));
+    bed.position.set(0, 0.25, 0);
+    scene.add(bed);
   }
 
-  // Set up enemy, camera, knife, etc. as before (same for both levels)
   enemy = new THREE.Group();
   const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1.5, 0.5), new THREE.MeshStandardMaterial({ color: 0xaa0000 }));
   body.position.y = 0.75;
@@ -132,6 +126,33 @@ function createMap() {
 
   enemy.position.set(0, 0, -5);
   scene.add(enemy);
+
+  redOverlay = document.createElement("div");
+  redOverlay.style.position = "fixed";
+  redOverlay.style.top = 0;
+  redOverlay.style.left = 0;
+  redOverlay.style.width = "100vw";
+  redOverlay.style.height = "100vh";
+  redOverlay.style.background = "rgba(255, 0, 0, 0)";
+  redOverlay.style.zIndex = 10;
+  redOverlay.style.pointerEvents = "none";
+  document.body.appendChild(redOverlay);
+
+  document.addEventListener("keydown", (e) => keys[e.key.toLowerCase()] = true);
+  document.addEventListener("keyup", (e) => keys[e.key.toLowerCase()] = false);
+}
+
+function makeCamera(x, y, z, rotY) {
+  const cam = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.3), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+  cam.add(base);
+  const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8), new THREE.MeshStandardMaterial({ color: 0x1111ff }));
+  lens.rotation.z = Math.PI / 2;
+  lens.position.z = 0.25;
+  cam.add(lens);
+  cam.position.set(x, y, z);
+  cam.rotation.y = rotY;
+  return cam;
 }
 
 function animate() {
@@ -234,9 +255,10 @@ function fadeToBlack() {
   redOverlay.style.background = "black";
   setTimeout(() => {
     if (level === 1) {
-      alert("Level 1 Beaten!");
+      alert("Level 1 beaten! Moving to Level 2...");
       level = 2;
-      resetGameForLevel2();
+      scene.clear();
+      init();
     } else {
       alert("You were stabbed by the teacher in surgery detention...");
       window.location.reload();
@@ -244,20 +266,12 @@ function fadeToBlack() {
   }, 1500);
 }
 
-function resetGameForLevel2() {
-  // Reset positions, enemies, and other things as needed for level 2
-  caught = false;
-  init(); // Reinitialize for level 2
-}
-
 // ✅ FIXED WIN CHECK HERE
 function checkWinCondition() {
   const winDistance = 1.2;
   if (camera.position.distanceTo(winDoor.position) < winDistance) {
     if (level === 1) {
-      alert("You escaped Surgery Detention! Level 1 Beaten!");
-      level = 2; // Set the level to 2
-      resetGameForLevel2();
+      fadeToBlack();
     } else {
       alert("You escaped Surgery Detention!");
       window.location.reload();
