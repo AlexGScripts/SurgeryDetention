@@ -1,11 +1,29 @@
-let scene, camera, renderer, enemy, knife, redOverlay, listener, stabSound;
-let keys = {};
-let gameStarted = false;
-let caught = false;
-
-let camYaw = 0;
-let camPitch = 0;
-let winDoor;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Surgery Detention</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #000; }
+    canvas { display: block; }
+    #overlay {
+      position: fixed; top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: black;
+      display: flex; align-items: center; justify-content: center;
+      color: white; font-size: 3em; z-index: 10;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="overlay" onclick="startGame()">Click to Start</div>
+  <canvas id="game"></canvas>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.157.0/build/three.min.js"></script>
+  <script>
+let scene, camera, renderer, enemy, knife, redOverlay, winDoor, secondWinDoor;
+let keys = {}, gameStarted = false, caught = false, camYaw = 0, camPitch = 0;
+let currentLevel = 1;
 
 function startGame() {
   document.getElementById("overlay").style.display = "none";
@@ -24,33 +42,22 @@ function init() {
   renderer = new THREE.WebGLRenderer({ canvas: document.getElementById("game") });
   renderer.setSize(window.innerWidth, window.innerHeight);
 
-  listener = new THREE.AudioListener();
-  camera.add(listener);
-
-  stabSound = new THREE.Audio(listener);
-  const audioLoader = new THREE.AudioLoader();
-  audioLoader.load("stab.mp3", (buffer) => {
-    stabSound.setBuffer(buffer);
-    stabSound.setVolume(0.5);
-  });
-
   const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
   dirLight.position.set(5, 10, 5);
   scene.add(dirLight);
 
-  const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+  const ambient = new THREE.AmbientLight(0x888888);
   scene.add(ambient);
 
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(20, 0.1, 20), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(50, 0.1, 50), new THREE.MeshStandardMaterial({ color: 0x2a2a2a }));
   scene.add(floor);
 
-  const ceiling = new THREE.Mesh(new THREE.BoxGeometry(20, 0.1, 20), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
+  const ceiling = new THREE.Mesh(new THREE.BoxGeometry(50, 0.1, 50), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
   ceiling.position.y = 3;
   scene.add(ceiling);
 
-  const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x444444, emissive: 0x222222 });
-
-  const wallLeft = new THREE.Mesh(new THREE.BoxGeometry(0.1, 3, 20), wallMaterial);
+  const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x444444 });
+  const wallLeft = new THREE.Mesh(new THREE.BoxGeometry(0.1, 3, 50), wallMaterial);
   wallLeft.position.set(-10, 1.5, 0);
   scene.add(wallLeft);
 
@@ -66,16 +73,21 @@ function init() {
   wallFront.position.set(0, 1.5, 10);
   scene.add(wallFront);
 
+  winDoor = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.1), new THREE.MeshStandardMaterial({ color: 0x00ff00 }));
+  winDoor.position.set(0, 1, -9.95);
+  scene.add(winDoor);
+
+  secondWinDoor = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.1), new THREE.MeshStandardMaterial({ color: 0x00ff00 }));
+  secondWinDoor.position.set(0, 1, 30);
+  secondWinDoor.visible = false;
+  scene.add(secondWinDoor);
+
   for (let i = -8; i <= 8; i += 2.5) {
     scene.add(makeCamera(-9.8, 2.5, i, Math.PI / 2));
     scene.add(makeCamera(9.8, 2.5, i, -Math.PI / 2));
     scene.add(makeCamera(i, 2.5, -9.8, 0));
     scene.add(makeCamera(i, 2.5, 9.8, Math.PI));
   }
-
-  winDoor = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.1), new THREE.MeshStandardMaterial({ color: 0x00ff00 }));
-  winDoor.position.set(0, 1, -9.95);
-  scene.add(winDoor);
 
   enemy = new THREE.Group();
   const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1.5, 0.5), new THREE.MeshStandardMaterial({ color: 0xaa0000 }));
@@ -159,8 +171,8 @@ function handleMovement() {
   const newX = camera.position.x + move.x;
   const newZ = camera.position.z + move.z;
 
-  if (Math.abs(newX) < 9.5) camera.position.x = newX;
-  if (Math.abs(newZ) < 9.5) camera.position.z = newZ;
+  if (Math.abs(newX) < 20) camera.position.x = newX;
+  if (Math.abs(newZ) < 50) camera.position.z = newZ;
 }
 
 function updateCameraDirection() {
@@ -183,8 +195,8 @@ function moveEnemy() {
   const dist = Math.sqrt(dx * dx + dz * dz);
 
   if (dist > 0.2) {
-    enemy.position.x += (dx / dist) * 0.045;
-    enemy.position.z += (dz / dist) * 0.045;
+    enemy.position.x += (dx / dist) * 0.08;
+    enemy.position.z += (dz / dist) * 0.08;
   }
 
   if (dist < 1.3 && !caught) {
@@ -197,11 +209,23 @@ function animateKnife() {
   knife.rotation.z = Math.sin(Date.now() * 0.01) * 0.8;
 }
 
-function playStabCutscene() {
-  stabSound.play();
+function checkWinCondition() {
+  const dist = (a, b) => a.position.distanceTo(b.position);
 
+  if (currentLevel === 1 && dist(camera, winDoor) < 1.5) {
+    currentLevel = 2;
+    camera.position.set(0, 1.6, 20);
+    winDoor.visible = false;
+    secondWinDoor.visible = true;
+  } else if (currentLevel === 2 && dist(camera, secondWinDoor) < 1.5) {
+    alert("You escaped Surgery Detention!");
+    window.location.reload();
+  }
+}
+
+function playStabCutscene() {
   let stabCount = 0;
-  const maxStabs = 5;
+  let maxStabs = 5;
 
   const stabInterval = setInterval(() => {
     camera.lookAt(enemy.position);
@@ -224,16 +248,10 @@ function fadeToBlack() {
   redOverlay.style.transition = "1s ease";
   redOverlay.style.background = "black";
   setTimeout(() => {
-    alert("You were stabbed by the teacher in surgery detention...");
+    alert("You were stabbed by the teacher in Surgery Detention...");
     window.location.reload();
   }, 1500);
 }
-
-// ✅ FIXED WIN CHECK HERE
-function checkWinCondition() {
-  const winDistance = 1.2;
-  if (camera.position.distanceTo(winDoor.position) < winDistance) {
-    alert("You escaped Surgery Detention!");
-    window.location.reload();
-  }
-}
+  </script>
+</body>
+</html>
