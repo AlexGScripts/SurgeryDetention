@@ -1,10 +1,15 @@
-let scene, camera, renderer, enemy, knife, redOverlay;
+let scene, camera, renderer, enemy, knife, redOverlay, winZone;
 let keys = {};
 let gameStarted = false;
 let caught = false;
+let won = false;
 
 let camYaw = 0;
 let camPitch = 0;
+
+const footstepSound = new Audio("footstep.mp3");
+const stabSound = new Audio("stab.mp3");
+const winSound = new Audio("win.mp3");
 
 function startGame() {
   document.getElementById("overlay").style.display = "none";
@@ -23,12 +28,8 @@ function init() {
   renderer = new THREE.WebGLRenderer({ canvas: document.getElementById("game") });
   renderer.setSize(window.innerWidth, window.innerHeight);
 
-  const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-  dirLight.position.set(5, 10, 5);
-  scene.add(dirLight);
-
-  const ambient = new THREE.AmbientLight(0x404040);
-  scene.add(ambient);
+  scene.add(new THREE.DirectionalLight(0xffffff, 1).position.set(5, 10, 5));
+  scene.add(new THREE.AmbientLight(0x404040));
 
   const floor = new THREE.Mesh(new THREE.BoxGeometry(20, 0.1, 20), new THREE.MeshStandardMaterial({ color: 0x2a2a2a }));
   scene.add(floor);
@@ -50,9 +51,20 @@ function init() {
   wallBack.position.set(0, 1.5, -10);
   scene.add(wallBack);
 
-  const wallFront = wallBack.clone();
-  wallFront.position.set(0, 1.5, 10);
-  scene.add(wallFront);
+  // Leave gap in wallFront for the door
+  const wallFrontLeft = new THREE.Mesh(new THREE.BoxGeometry(8, 3, 0.1), wallMaterial);
+  wallFrontLeft.position.set(-6, 1.5, 10);
+  scene.add(wallFrontLeft);
+
+  const wallFrontRight = wallFrontLeft.clone();
+  wallFrontRight.position.set(6, 1.5, 10);
+  scene.add(wallFrontRight);
+
+  // Win Zone (Doorway)
+  winZone = new THREE.Mesh(new THREE.BoxGeometry(4, 3, 0.1), new THREE.MeshStandardMaterial({ color: 0x00ff00 }));
+  winZone.position.set(0, 1.5, 10);
+  winZone.visible = false;
+  scene.add(winZone);
 
   for (let i = -8; i <= 8; i += 2.5) {
     scene.add(makeCamera(-9.8, 2.5, i, Math.PI / 2));
@@ -111,10 +123,11 @@ function makeCamera(x, y, z, rotY) {
 
 function animate() {
   requestAnimationFrame(animate);
-  if (gameStarted && !caught) {
+  if (gameStarted && !caught && !won) {
     handleMovement();
     moveEnemy();
     animateKnife();
+    checkWin();
   }
   updateCameraDirection();
   renderer.render(scene, camera);
@@ -137,6 +150,8 @@ function handleMovement() {
   if (keys["s"]) move.sub(forward);
   if (keys["a"]) move.sub(right);
   if (keys["d"]) move.add(right);
+
+  if (move.length() > 0) footstepSound.play();
 
   move.normalize().multiplyScalar(speed);
   const newX = camera.position.x + move.x;
@@ -166,18 +181,35 @@ function moveEnemy() {
   const dist = Math.sqrt(dx * dx + dz * dz);
 
   if (dist > 0.2) {
-    enemy.position.x += (dx / dist) * 0.035;
-    enemy.position.z += (dz / dist) * 0.035;
+    enemy.position.x += (dx / dist) * 0.06; // faster enemy
+    enemy.position.z += (dz / dist) * 0.06;
   }
 
   if (dist < 1.3 && !caught) {
     caught = true;
+    stabSound.play();
     playStabCutscene();
   }
 }
 
 function animateKnife() {
   knife.rotation.z = Math.sin(Date.now() * 0.01) * 0.8;
+}
+
+function checkWin() {
+  const dx = camera.position.x - winZone.position.x;
+  const dz = camera.position.z - winZone.position.z;
+  const dist = Math.sqrt(dx * dx + dz * dz);
+
+  if (dist < 2 && !won) {
+    won = true;
+    winSound.play();
+    redOverlay.style.background = "rgba(0,255,0,0.4)";
+    setTimeout(() => {
+      alert("You escaped Surgery Detention! 🏃‍♂️💨");
+      window.location.reload();
+    }, 1500);
+  }
 }
 
 function playStabCutscene() {
