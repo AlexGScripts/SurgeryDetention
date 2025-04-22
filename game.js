@@ -1,11 +1,11 @@
-let scene, camera, renderer, enemy, knife, redOverlay, listener, stabSound;
+let scene, camera, renderer, enemy, knife, redOverlay, listener, stabSound, winDoor, secondLevelEnemy;
 let keys = {};
 let gameStarted = false;
 let caught = false;
+let currentLevel = 1; // Track current level
 
 let camYaw = 0;
 let camPitch = 0;
-let winDoor;
 
 function startGame() {
   document.getElementById("overlay").style.display = "none";
@@ -110,6 +110,29 @@ function init() {
 
   document.addEventListener("keydown", (e) => keys[e.key.toLowerCase()] = true);
   document.addEventListener("keyup", (e) => keys[e.key.toLowerCase()] = false);
+
+  // Add second level enemy (Principal) after the first level
+  secondLevelEnemy = createPrincipalEnemy();
+}
+
+function createPrincipalEnemy() {
+  const principal = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1.5, 0.5), new THREE.MeshStandardMaterial({ color: 0x0000aa }));
+  body.position.y = 0.75;
+  principal.add(body);
+
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), new THREE.MeshStandardMaterial({ color: 0xffaaff }));
+  head.position.y = 1.9;
+  principal.add(head);
+
+  const arm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1, 0.2), new THREE.MeshStandardMaterial({ color: 0x0000aa }));
+  arm.position.set(0.6, 1.2, 0);
+  principal.add(arm);
+
+  principal.position.set(0, 0, -15); // Place Principal far away for level 2
+  principal.visible = false; // Initially not visible
+  scene.add(principal);
+  return principal;
 }
 
 function makeCamera(x, y, z, rotY) {
@@ -229,11 +252,17 @@ function fadeToBlack() {
   }, 1500);
 }
 
-// ✅ FIXED WIN CHECK HERE
 function checkWinCondition() {
   const winDistance = 1.2;
   if (camera.position.distanceTo(winDoor.position) < winDistance) {
-    alert("You escaped Surgery Detention!");
-    window.location.reload();
+    // Switch to Level 2
+    if (currentLevel === 1) {
+      winDoor.visible = false; // Hide win door for level 1
+      currentLevel = 2;
+      secondLevelEnemy.visible = true; // Show the second level enemy (Principal)
+    } else {
+      alert("You escaped Surgery Detention!");
+      window.location.reload();
+    }
   }
 }
