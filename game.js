@@ -3,6 +3,8 @@ let keys = {};
 let gameStarted = false;
 let caught = false;
 let level = 1;
+let isDragging = false;
+let dragTarget = new THREE.Vector3(0, 0, 0);
 
 let camYaw = 0;
 let camPitch = 0;
@@ -217,9 +219,11 @@ function moveEnemy() {
     enemy.position.z += (dz / dist) * 0.045;
   }
 
-  if (dist < 1.3 && !caught) {
+  if (dist < 1.3 && !caught && !isDragging) {
     caught = true;
-    playStabCutscene();
+    isDragging = true;
+    dragTarget.set(0, 0.25, 0);
+    playDragCutscene();
   }
 }
 
@@ -227,27 +231,32 @@ function animateKnife() {
   knife.rotation.z = Math.sin(Date.now() * 0.01) * 0.8;
 }
 
+function playDragCutscene() {
+  let dragInterval = setInterval(() => {
+    enemy.position.lerp(dragTarget, 0.1);
+    camera.position.lerp(dragTarget, 0.1);
+    
+    if (enemy.position.distanceTo(dragTarget) < 0.1) {
+      clearInterval(dragInterval);
+      playStabCutscene();
+    }
+  }, 30);
+}
+
 function playStabCutscene() {
   stabSound.play();
-
-  let stabCount = 0;
-  const maxStabs = 5;
-
-  const stabInterval = setInterval(() => {
-    camera.lookAt(enemy.position);
-    enemy.lookAt(camera.position);
-    enemy.position.lerp(camera.position, 0.15);
-    knife.rotation.z = Math.random() > 0.5 ? 1 : -1;
-
-    redOverlay.style.background = "rgba(255, 0, 0, 0.3)";
-    setTimeout(() => redOverlay.style.background = "rgba(255, 0, 0, 0)", 100);
-
-    stabCount++;
-    if (stabCount >= maxStabs) {
-      clearInterval(stabInterval);
-      setTimeout(() => fadeToBlack(), 800);
-    }
-  }, 600);
+  setTimeout(() => {
+    redOverlay.style.background = "rgba(255, 0, 0, 0.7)";
+    setTimeout(() => {
+      redOverlay.style.background = "rgba(255, 0, 0, 0.8)";
+      setTimeout(() => {
+        redOverlay.style.background = "rgba(255, 0, 0, 1)";
+        setTimeout(() => {
+          fadeToBlack();
+        }, 1000);
+      }, 500);
+    }, 500);
+  }, 500);
 }
 
 function fadeToBlack() {
@@ -266,7 +275,6 @@ function fadeToBlack() {
   }, 1500);
 }
 
-// ✅ FIXED WIN CHECK HERE
 function checkWinCondition() {
   const winDistance = 1.2;
   if (camera.position.distanceTo(winDoor.position) < winDistance) {
