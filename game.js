@@ -1,8 +1,11 @@
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
+
 let scene, camera, renderer, enemy, knife, redOverlay;
 let keys = {};
 let gameStarted = false;
 let caught = false;
-let yaw = 0;
+let yaw = Math.PI; // Start facing toward -Z
 let pitch = 0;
 
 function startGame() {
@@ -29,14 +32,23 @@ function init() {
   const ambient = new THREE.AmbientLight(0x404040);
   scene.add(ambient);
 
-  const floor = new THREE.Mesh(new THREE.BoxGeometry(20, 0.1, 20), new THREE.MeshStandardMaterial({ color: 0x2a2a2a }));
+  // Floor & Ceiling
+  const floor = new THREE.Mesh(
+    new THREE.BoxGeometry(20, 0.1, 20),
+    new THREE.MeshStandardMaterial({ color: 0x2a2a2a })
+  );
   scene.add(floor);
 
-  const ceiling = new THREE.Mesh(new THREE.BoxGeometry(20, 0.1, 20), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
+  const ceiling = new THREE.Mesh(
+    new THREE.BoxGeometry(20, 0.1, 20),
+    new THREE.MeshStandardMaterial({ color: 0x1a1a1a })
+  );
   ceiling.position.y = 3;
   scene.add(ceiling);
 
+  // Walls
   const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x444444 });
+
   const wallLeft = new THREE.Mesh(new THREE.BoxGeometry(0.1, 3, 20), wallMaterial);
   wallLeft.position.set(-10, 1.5, 0);
   scene.add(wallLeft);
@@ -53,6 +65,7 @@ function init() {
   wallFront.position.set(0, 1.5, 10);
   scene.add(wallFront);
 
+  // Security Cameras
   for (let i = -8; i <= 8; i += 2.5) {
     scene.add(makeCamera(-9.8, 2.5, i, Math.PI / 2));
     scene.add(makeCamera(9.8, 2.5, i, -Math.PI / 2));
@@ -60,7 +73,9 @@ function init() {
     scene.add(makeCamera(i, 2.5, 9.8, Math.PI));
   }
 
+  // Enemy
   enemy = new THREE.Group();
+
   const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1.5, 0.5), new THREE.MeshStandardMaterial({ color: 0xaa0000 }));
   body.position.y = 0.75;
   enemy.add(body);
@@ -112,11 +127,18 @@ function animate() {
   requestAnimationFrame(animate);
 
   if (gameStarted && !caught) {
-    handleMovement();
     handleCameraRotation();
+    handleMovement();
     moveEnemy();
     animateKnife();
   }
+
+  const target = new THREE.Vector3(
+    camera.position.x + Math.sin(yaw),
+    camera.position.y + pitch,
+    camera.position.z + Math.cos(yaw)
+  );
+  camera.lookAt(target);
 
   renderer.render(scene, camera);
 }
@@ -132,30 +154,22 @@ function handleMovement() {
 
   direction.normalize();
 
-  const moveX = direction.x * Math.cos(yaw) - direction.z * Math.sin(yaw);
-  const moveZ = direction.x * Math.sin(yaw) + direction.z * Math.cos(yaw);
+  const moveX = Math.sin(yaw) * direction.z + Math.cos(yaw) * direction.x;
+  const moveZ = Math.cos(yaw) * direction.z - Math.sin(yaw) * direction.x;
 
   const newX = camera.position.x + moveX * speed;
   const newZ = camera.position.z + moveZ * speed;
 
   if (newX > -9.5 && newX < 9.5) camera.position.x = newX;
   if (newZ > -9.5 && newZ < 9.5) camera.position.z = newZ;
-
-  const lookTarget = new THREE.Vector3(
-    camera.position.x + Math.sin(yaw),
-    camera.position.y,
-    camera.position.z + Math.cos(yaw)
-  );
-  camera.lookAt(lookTarget);
 }
 
 function handleCameraRotation() {
-  const rotationSpeed = 0.03;
-
-  if (keys["arrowleft"]) yaw += rotationSpeed;
-  if (keys["arrowright"]) yaw -= rotationSpeed;
-  if (keys["arrowup"]) pitch = Math.max(pitch - rotationSpeed, -Math.PI / 4);
-  if (keys["arrowdown"]) pitch = Math.min(pitch + rotationSpeed, Math.PI / 4);
+  const rotateSpeed = 0.03;
+  if (keys["arrowleft"]) yaw += rotateSpeed;
+  if (keys["arrowright"]) yaw -= rotateSpeed;
+  if (keys["arrowup"]) pitch = Math.max(-0.5, pitch - rotateSpeed);
+  if (keys["arrowdown"]) pitch = Math.min(0.5, pitch + rotateSpeed);
 }
 
 function moveEnemy() {
@@ -180,7 +194,7 @@ function animateKnife() {
 
 function playStabCutscene() {
   let stabCount = 0;
-  let maxStabs = 5;
+  const maxStabs = 5;
 
   const stabInterval = setInterval(() => {
     camera.lookAt(enemy.position);
@@ -211,3 +225,4 @@ function fadeToBlack() {
     window.location.reload();
   }, 1500);
 }
+</script>
