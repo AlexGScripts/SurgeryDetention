@@ -2,7 +2,6 @@ let scene, camera, renderer, enemy, knife, redOverlay, listener, stabSound;
 let keys = {};
 let gameStarted = false;
 let caught = false;
-let level = 1;
 
 let camYaw = 0;
 let camPitch = 0;
@@ -78,8 +77,25 @@ function init() {
   winDoor.position.set(0, 1, -9.95);
   scene.add(winDoor);
 
-  // Set enemy to teacher for level 1 (already added)
-  enemy = createTeacherEnemy();
+  enemy = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1.5, 0.5), new THREE.MeshStandardMaterial({ color: 0xaa0000 }));
+  body.position.y = 0.75;
+  enemy.add(body);
+
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), new THREE.MeshStandardMaterial({ color: 0xffccaa }));
+  head.position.y = 1.9;
+  enemy.add(head);
+
+  const arm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1, 0.2), new THREE.MeshStandardMaterial({ color: 0xaa0000 }));
+  arm.position.set(0.6, 1.2, 0);
+  enemy.add(arm);
+
+  knife = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.6, 0.1), new THREE.MeshStandardMaterial({ color: 0xcccccc }));
+  knife.position.set(0.6, 0.9, 0.2);
+  enemy.add(knife);
+
+  enemy.position.set(0, 0, -5);
+  scene.add(enemy);
 
   redOverlay = document.createElement("div");
   redOverlay.style.position = "fixed";
@@ -96,48 +112,17 @@ function init() {
   document.addEventListener("keyup", (e) => keys[e.key.toLowerCase()] = false);
 }
 
-function createTeacherEnemy() {
-  const teacher = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1.5, 0.5), new THREE.MeshStandardMaterial({ color: 0xaa0000 }));
-  body.position.y = 0.75;
-  teacher.add(body);
-
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), new THREE.MeshStandardMaterial({ color: 0xffccaa }));
-  head.position.y = 1.9;
-  teacher.add(head);
-
-  const arm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1, 0.2), new THREE.MeshStandardMaterial({ color: 0xaa0000 }));
-  arm.position.set(0.6, 1.2, 0);
-  teacher.add(arm);
-
-  knife = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.6, 0.1), new THREE.MeshStandardMaterial({ color: 0xcccccc }));
-  knife.position.set(0.6, 0.9, 0.2);
-  teacher.add(knife);
-
-  teacher.position.set(0, 0, -5);
-  return teacher;
-}
-
-function createPrincipalEnemy() {
-  const principal = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1.5, 0.5), new THREE.MeshStandardMaterial({ color: 0x0000aa }));
-  body.position.y = 0.75;
-  principal.add(body);
-
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), new THREE.MeshStandardMaterial({ color: 0xdddddd }));
-  head.position.y = 1.9;
-  principal.add(head);
-
-  const arm = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1, 0.2), new THREE.MeshStandardMaterial({ color: 0x0000aa }));
-  arm.position.set(0.6, 1.2, 0);
-  principal.add(arm);
-
-  knife = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.6, 0.1), new THREE.MeshStandardMaterial({ color: 0xcccccc }));
-  knife.position.set(0.6, 0.9, 0.2);
-  principal.add(knife);
-
-  principal.position.set(0, 0, -5);
-  return principal;
+function makeCamera(x, y, z, rotY) {
+  const cam = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.3), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+  cam.add(base);
+  const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8), new THREE.MeshStandardMaterial({ color: 0x1111ff }));
+  lens.rotation.z = Math.PI / 2;
+  lens.position.z = 0.25;
+  cam.add(lens);
+  cam.position.set(x, y, z);
+  cam.rotation.y = rotY;
+  return cam;
 }
 
 function animate() {
@@ -204,14 +189,7 @@ function moveEnemy() {
 
   if (dist < 1.3 && !caught) {
     caught = true;
-    if (level === 1) {
-      level = 2; // Move to level 2
-      enemy = createPrincipalEnemy(); // Change enemy to the principal
-      enemy.position.set(0, 0, -5); // Set initial position
-      setTimeout(() => playStabCutscene(), 500); // Delay to show the change
-    } else {
-      playStabCutscene();
-    }
+    playStabCutscene();
   }
 }
 
@@ -238,7 +216,7 @@ function playStabCutscene() {
     if (stabCount >= maxStabs) {
       clearInterval(stabInterval);
       setTimeout(() => fadeToBlack(), 800);
-    }https://surgerydetention.vercel.app/
+    }
   }, 600);
 }
 
@@ -251,6 +229,7 @@ function fadeToBlack() {
   }, 1500);
 }
 
+// ✅ FIXED WIN CHECK HERE
 function checkWinCondition() {
   const winDistance = 1.2;
   if (camera.position.distanceTo(winDoor.position) < winDistance) {
