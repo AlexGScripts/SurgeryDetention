@@ -1,12 +1,10 @@
-<script type="module">
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
-
 let scene, camera, renderer, enemy, knife, redOverlay;
 let keys = {};
 let gameStarted = false;
 let caught = false;
-let yaw = Math.PI; // Start facing toward -Z
-let pitch = 0;
+
+let camYaw = 0;
+let camPitch = 0;
 
 function startGame() {
   document.getElementById("overlay").style.display = "none";
@@ -32,23 +30,14 @@ function init() {
   const ambient = new THREE.AmbientLight(0x404040);
   scene.add(ambient);
 
-  // Floor & Ceiling
-  const floor = new THREE.Mesh(
-    new THREE.BoxGeometry(20, 0.1, 20),
-    new THREE.MeshStandardMaterial({ color: 0x2a2a2a })
-  );
+  const floor = new THREE.Mesh(new THREE.BoxGeometry(20, 0.1, 20), new THREE.MeshStandardMaterial({ color: 0x2a2a2a }));
   scene.add(floor);
 
-  const ceiling = new THREE.Mesh(
-    new THREE.BoxGeometry(20, 0.1, 20),
-    new THREE.MeshStandardMaterial({ color: 0x1a1a1a })
-  );
+  const ceiling = new THREE.Mesh(new THREE.BoxGeometry(20, 0.1, 20), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
   ceiling.position.y = 3;
   scene.add(ceiling);
 
-  // Walls
   const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x444444 });
-
   const wallLeft = new THREE.Mesh(new THREE.BoxGeometry(0.1, 3, 20), wallMaterial);
   wallLeft.position.set(-10, 1.5, 0);
   scene.add(wallLeft);
@@ -65,7 +54,6 @@ function init() {
   wallFront.position.set(0, 1.5, 10);
   scene.add(wallFront);
 
-  // Security Cameras
   for (let i = -8; i <= 8; i += 2.5) {
     scene.add(makeCamera(-9.8, 2.5, i, Math.PI / 2));
     scene.add(makeCamera(9.8, 2.5, i, -Math.PI / 2));
@@ -73,9 +61,7 @@ function init() {
     scene.add(makeCamera(i, 2.5, 9.8, Math.PI));
   }
 
-  // Enemy
   enemy = new THREE.Group();
-
   const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1.5, 0.5), new THREE.MeshStandardMaterial({ color: 0xaa0000 }));
   body.position.y = 0.75;
   enemy.add(body);
@@ -95,9 +81,6 @@ function init() {
   enemy.position.set(0, 0, -5);
   scene.add(enemy);
 
-  document.addEventListener("keydown", (e) => keys[e.key.toLowerCase()] = true);
-  document.addEventListener("keyup", (e) => keys[e.key.toLowerCase()] = false);
-
   redOverlay = document.createElement("div");
   redOverlay.style.position = "fixed";
   redOverlay.style.top = 0;
@@ -108,6 +91,9 @@ function init() {
   redOverlay.style.zIndex = 10;
   redOverlay.style.pointerEvents = "none";
   document.body.appendChild(redOverlay);
+
+  document.addEventListener("keydown", (e) => keys[e.key.toLowerCase()] = true);
+  document.addEventListener("keyup", (e) => keys[e.key.toLowerCase()] = false);
 }
 
 function makeCamera(x, y, z, rotY) {
@@ -125,51 +111,53 @@ function makeCamera(x, y, z, rotY) {
 
 function animate() {
   requestAnimationFrame(animate);
-
   if (gameStarted && !caught) {
-    handleCameraRotation();
     handleMovement();
     moveEnemy();
     animateKnife();
   }
-
-  const target = new THREE.Vector3(
-    camera.position.x + Math.sin(yaw),
-    camera.position.y + pitch,
-    camera.position.z + Math.cos(yaw)
-  );
-  camera.lookAt(target);
-
+  updateCameraDirection();
   renderer.render(scene, camera);
 }
 
 function handleMovement() {
   const speed = 0.1;
-  const direction = new THREE.Vector3();
 
-  if (keys["w"]) direction.z -= 1;
-  if (keys["s"]) direction.z += 1;
-  if (keys["a"]) direction.x -= 1;
-  if (keys["d"]) direction.x += 1;
+  const forward = new THREE.Vector3();
+  camera.getWorldDirection(forward);
+  forward.y = 0;
+  forward.normalize();
 
-  direction.normalize();
+  const right = new THREE.Vector3();
+  right.crossVectors(forward, camera.up).normalize();
 
-  const moveX = Math.sin(yaw) * direction.z + Math.cos(yaw) * direction.x;
-  const moveZ = Math.cos(yaw) * direction.z - Math.sin(yaw) * direction.x;
+  let move = new THREE.Vector3();
 
-  const newX = camera.position.x + moveX * speed;
-  const newZ = camera.position.z + moveZ * speed;
+  if (keys["w"]) move.add(forward);
+  if (keys["s"]) move.sub(forward);
+  if (keys["a"]) move.sub(right);
+  if (keys["d"]) move.add(right);
 
-  if (newX > -9.5 && newX < 9.5) camera.position.x = newX;
-  if (newZ > -9.5 && newZ < 9.5) camera.position.z = newZ;
+  move.normalize().multiplyScalar(speed);
+  const newX = camera.position.x + move.x;
+  const newZ = camera.position.z + move.z;
+
+  if (Math.abs(newX) < 9.5) camera.position.x = newX;
+  if (Math.abs(newZ) < 9.5) camera.position.z = newZ;
 }
 
-function handleCameraRotation() {
-  const rotateSpeed = 0.03;
-  if (keys["arrowleft"]) yaw += rotateSpeed;
-  if (keys["arrowright"]) yaw -= rotateSpeed;
-  if (keys["arrowup"]) pitch = Math.max(-0.5, pitch - rotateSpeed);
-  if (keys["arrowdown"]) pitch = Math.min(0.5, pitch + rotateSpeed);
+function updateCameraDirection() {
+  if (keys["arrowleft"]) camYaw += 0.03;
+  if (keys["arrowright"]) camYaw -= 0.03;
+  if (keys["arrowup"]) camPitch += 0.02;
+  if (keys["arrowdown"]) camPitch -= 0.02;
+
+  camPitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camPitch));
+
+  const x = Math.cos(camPitch) * Math.sin(camYaw);
+  const y = Math.sin(camPitch);
+  const z = Math.cos(camPitch) * Math.cos(camYaw);
+  camera.lookAt(camera.position.x + x, camera.position.y + y, camera.position.z + z);
 }
 
 function moveEnemy() {
@@ -194,7 +182,7 @@ function animateKnife() {
 
 function playStabCutscene() {
   let stabCount = 0;
-  const maxStabs = 5;
+  let maxStabs = 5;
 
   const stabInterval = setInterval(() => {
     camera.lookAt(enemy.position);
@@ -203,16 +191,12 @@ function playStabCutscene() {
     knife.rotation.z = Math.random() > 0.5 ? 1 : -1;
 
     redOverlay.style.background = "rgba(255, 0, 0, 0.3)";
-    setTimeout(() => {
-      redOverlay.style.background = "rgba(255, 0, 0, 0)";
-    }, 100);
+    setTimeout(() => redOverlay.style.background = "rgba(255, 0, 0, 0)", 100);
 
     stabCount++;
     if (stabCount >= maxStabs) {
       clearInterval(stabInterval);
-      setTimeout(() => {
-        fadeToBlack();
-      }, 800);
+      setTimeout(() => fadeToBlack(), 800);
     }
   }, 600);
 }
@@ -225,4 +209,3 @@ function fadeToBlack() {
     window.location.reload();
   }, 1500);
 }
-</script>
