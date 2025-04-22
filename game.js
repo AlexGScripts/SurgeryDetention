@@ -2,7 +2,6 @@ let scene, camera, renderer, enemy, knife, redOverlay;
 let keys = {};
 let gameStarted = false;
 let caught = false;
-let stabFrame = 0;
 let yaw = 0;
 let pitch = 0;
 
@@ -11,7 +10,6 @@ function startGame() {
   gameStarted = true;
   init();
   animate();
-  enablePointerLock();
 }
 
 function init() {
@@ -31,18 +29,14 @@ function init() {
   const ambient = new THREE.AmbientLight(0x404040);
   scene.add(ambient);
 
-  // Floor
   const floor = new THREE.Mesh(new THREE.BoxGeometry(20, 0.1, 20), new THREE.MeshStandardMaterial({ color: 0x2a2a2a }));
   scene.add(floor);
 
-  // Ceiling
   const ceiling = new THREE.Mesh(new THREE.BoxGeometry(20, 0.1, 20), new THREE.MeshStandardMaterial({ color: 0x1a1a1a }));
   ceiling.position.y = 3;
   scene.add(ceiling);
 
-  // Walls
   const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x444444 });
-
   const wallLeft = new THREE.Mesh(new THREE.BoxGeometry(0.1, 3, 20), wallMaterial);
   wallLeft.position.set(-10, 1.5, 0);
   scene.add(wallLeft);
@@ -59,7 +53,6 @@ function init() {
   wallFront.position.set(0, 1.5, 10);
   scene.add(wallFront);
 
-  // Security Cameras
   for (let i = -8; i <= 8; i += 2.5) {
     scene.add(makeCamera(-9.8, 2.5, i, Math.PI / 2));
     scene.add(makeCamera(9.8, 2.5, i, -Math.PI / 2));
@@ -67,9 +60,7 @@ function init() {
     scene.add(makeCamera(i, 2.5, 9.8, Math.PI));
   }
 
-  // Enemy
   enemy = new THREE.Group();
-
   const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1.5, 0.5), new THREE.MeshStandardMaterial({ color: 0xaa0000 }));
   body.position.y = 0.75;
   enemy.add(body);
@@ -92,7 +83,6 @@ function init() {
   document.addEventListener("keydown", (e) => keys[e.key.toLowerCase()] = true);
   document.addEventListener("keyup", (e) => keys[e.key.toLowerCase()] = false);
 
-  // Red overlay
   redOverlay = document.createElement("div");
   redOverlay.style.position = "fixed";
   redOverlay.style.top = 0;
@@ -105,48 +95,29 @@ function init() {
   document.body.appendChild(redOverlay);
 }
 
-function enablePointerLock() {
-  const canvas = renderer.domElement;
-  canvas.requestPointerLock = canvas.requestPointerLock || canvas.mozRequestPointerLock;
-  document.exitPointerLock = document.exitPointerLock || document.mozExitPointerLock;
-
-  canvas.addEventListener("click", () => {
-    canvas.requestPointerLock();
-  });
-
-  document.addEventListener("pointerlockchange", () => {
-    if (document.pointerLockElement === canvas) {
-      document.addEventListener("mousemove", onMouseMove, false);
-    } else {
-      document.removeEventListener("mousemove", onMouseMove, false);
-    }
-  }, false);
-}
-
-function onMouseMove(event) {
-  const sensitivity = 0.002;
-  yaw -= event.movementX * sensitivity;
-  pitch -= event.movementY * sensitivity;
-  pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
-  updateCameraDirection();
-}
-
-function updateCameraDirection() {
-  const direction = new THREE.Vector3(
-    Math.sin(yaw) * Math.cos(pitch),
-    Math.sin(pitch),
-    Math.cos(yaw) * Math.cos(pitch)
-  );
-  camera.lookAt(camera.position.clone().add(direction));
+function makeCamera(x, y, z, rotY) {
+  const cam = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.3), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+  cam.add(base);
+  const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8), new THREE.MeshStandardMaterial({ color: 0x1111ff }));
+  lens.rotation.z = Math.PI / 2;
+  lens.position.z = 0.25;
+  cam.add(lens);
+  cam.position.set(x, y, z);
+  cam.rotation.y = rotY;
+  return cam;
 }
 
 function animate() {
   requestAnimationFrame(animate);
+
   if (gameStarted && !caught) {
     handleMovement();
+    handleCameraRotation();
     moveEnemy();
     animateKnife();
   }
+
   renderer.render(scene, camera);
 }
 
@@ -161,13 +132,30 @@ function handleMovement() {
 
   direction.normalize();
 
-  const move = new THREE.Vector3(
-    Math.sin(yaw) * direction.z + Math.cos(yaw) * direction.x,
-    0,
-    Math.cos(yaw) * direction.z - Math.sin(yaw) * direction.x
-  );
+  const moveX = direction.x * Math.cos(yaw) - direction.z * Math.sin(yaw);
+  const moveZ = direction.x * Math.sin(yaw) + direction.z * Math.cos(yaw);
 
-  camera.position.addScaledVector(move, speed);
+  const newX = camera.position.x + moveX * speed;
+  const newZ = camera.position.z + moveZ * speed;
+
+  if (newX > -9.5 && newX < 9.5) camera.position.x = newX;
+  if (newZ > -9.5 && newZ < 9.5) camera.position.z = newZ;
+
+  const lookTarget = new THREE.Vector3(
+    camera.position.x + Math.sin(yaw),
+    camera.position.y,
+    camera.position.z + Math.cos(yaw)
+  );
+  camera.lookAt(lookTarget);
+}
+
+function handleCameraRotation() {
+  const rotationSpeed = 0.03;
+
+  if (keys["arrowleft"]) yaw += rotationSpeed;
+  if (keys["arrowright"]) yaw -= rotationSpeed;
+  if (keys["arrowup"]) pitch = Math.max(pitch - rotationSpeed, -Math.PI / 4);
+  if (keys["arrowdown"]) pitch = Math.min(pitch + rotationSpeed, Math.PI / 4);
 }
 
 function moveEnemy() {
@@ -192,7 +180,7 @@ function animateKnife() {
 
 function playStabCutscene() {
   let stabCount = 0;
-  const maxStabs = 5;
+  let maxStabs = 5;
 
   const stabInterval = setInterval(() => {
     camera.lookAt(enemy.position);
@@ -222,17 +210,4 @@ function fadeToBlack() {
     alert("You were stabbed by the teacher in surgery detention...");
     window.location.reload();
   }, 1500);
-}
-
-function makeCamera(x, y, z, rotY) {
-  const cam = new THREE.Group();
-  const base = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.3), new THREE.MeshStandardMaterial({ color: 0x222222 }));
-  cam.add(base);
-  const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 8), new THREE.MeshStandardMaterial({ color: 0x1111ff }));
-  lens.rotation.z = Math.PI / 2;
-  lens.position.z = 0.25;
-  cam.add(lens);
-  cam.position.set(x, y, z);
-  cam.rotation.y = rotY;
-  return cam;
 }
