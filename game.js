@@ -3,8 +3,11 @@ let keys = {};
 let gameStarted = false;
 let caught = false;
 let level = 1;
-let transitioning = false;
-let camYaw = 0, camPitch = 0;
+let isDragging = false;
+let dragTarget = new THREE.Vector3(0, 0, 0);
+
+let camYaw = 0;
+let camPitch = 0;
 let winDoor;
 
 function startGame() {
@@ -50,51 +53,56 @@ function init() {
 
   const wallMaterial = new THREE.MeshStandardMaterial({ color: 0x444444, emissive: 0x222222 });
 
-  if (level === 1) {
-    createBoxRoom(wallMaterial);
+  const wallLeft = new THREE.Mesh(new THREE.BoxGeometry(0.1, 3, 20), wallMaterial);
+  wallLeft.position.set(-10, 1.5, 0);
+  scene.add(wallLeft);
 
-    for (let i = -8; i <= 8; i += 2.5) {
-      scene.add(makeCamera(-9.8, 2.5, i, Math.PI / 2));
-      scene.add(makeCamera(9.8, 2.5, i, -Math.PI / 2));
-      scene.add(makeCamera(i, 2.5, -9.8, 0));
-      scene.add(makeCamera(i, 2.5, 9.8, Math.PI));
-    }
+  const wallRight = wallLeft.clone();
+  wallRight.position.set(10, 1.5, 0);
+  scene.add(wallRight);
 
-    winDoor = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.1), new THREE.MeshStandardMaterial({ color: 0x00ff00 }));
-    winDoor.position.set(0, 1, -9.95);
-    scene.add(winDoor);
+  const wallBack = new THREE.Mesh(new THREE.BoxGeometry(20, 3, 0.1), wallMaterial);
+  wallBack.position.set(0, 1.5, -10);
+  scene.add(wallBack);
 
-    const bed = new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 2), new THREE.MeshStandardMaterial({ color: 0xaaaaaa }));
-    bed.position.set(0, 0.25, 0);
-    scene.add(bed);
+  const wallFront = wallBack.clone();
+  wallFront.position.set(0, 1.5, 10);
+  scene.add(wallFront);
+
+  for (let i = -8; i <= 8; i += 2.5) {
+    scene.add(makeCamera(-9.8, 2.5, i, Math.PI / 2));
+    scene.add(makeCamera(9.8, 2.5, i, -Math.PI / 2));
+    scene.add(makeCamera(i, 2.5, -9.8, 0));
+    scene.add(makeCamera(i, 2.5, 9.8, Math.PI));
   }
 
+  winDoor = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.1), new THREE.MeshStandardMaterial({ color: 0x00ff00 }));
+  winDoor.position.set(0, 1, -9.95);
+  scene.add(winDoor);
+
+  const bed = new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 2), new THREE.MeshStandardMaterial({ color: 0xaaaaaa }));
+  bed.position.set(0, 0.25, 0);
+  scene.add(bed);
+
   if (level === 2) {
-    createBoxRoom(wallMaterial);
+    // Add more walls for Level 2
+    const midWall1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 3, 10), wallMaterial);
+    midWall1.position.set(-5, 1.5, 0);
+    scene.add(midWall1);
 
-    for (let i = -8; i <= 8; i += 2.5) {
-      scene.add(makeCamera(-9.8, 2.5, i, Math.PI / 2));
-      scene.add(makeCamera(9.8, 2.5, i, -Math.PI / 2));
-      scene.add(makeCamera(i, 2.5, -9.8, 0));
-      scene.add(makeCamera(i, 2.5, 9.8, Math.PI));
-    }
+    const midWall2 = new THREE.Mesh(new THREE.BoxGeometry(10, 3, 0.1), wallMaterial);
+    midWall2.position.set(0, 1.5, 5);
+    scene.add(midWall2);
 
-    // Extra walls for complex map
-    const innerWall1 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3, 10), wallMaterial);
-    innerWall1.position.set(2, 1.5, 0);
-    scene.add(innerWall1);
+    const midWall3 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 3, 10), wallMaterial);
+    midWall3.position.set(5, 1.5, -2);
+    scene.add(midWall3);
 
-    const innerWall2 = new THREE.Mesh(new THREE.BoxGeometry(6, 3, 0.2), wallMaterial);
-    innerWall2.position.set(0, 1.5, 3);
-    scene.add(innerWall2);
+    const midWall4 = new THREE.Mesh(new THREE.BoxGeometry(6, 3, 0.1), wallMaterial);
+    midWall4.position.set(-3, 1.5, -4);
+    scene.add(midWall4);
 
-    const bed = new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 2), new THREE.MeshStandardMaterial({ color: 0xaaaaaa }));
-    bed.position.set(0, 0.25, 0);
-    scene.add(bed);
-
-    winDoor = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.1), new THREE.MeshStandardMaterial({ color: 0xff0000 }));
-    winDoor.position.set(0, 1, -9.95);
-    scene.add(winDoor);
+    winDoor.material.color.set(0xff0000);
   }
 
   enemy = new THREE.Group();
@@ -123,31 +131,13 @@ function init() {
   redOverlay.style.left = 0;
   redOverlay.style.width = "100vw";
   redOverlay.style.height = "100vh";
-  redOverlay.style.background = "rgba(0, 0, 0, 0)";
+  redOverlay.style.background = "rgba(255, 0, 0, 0)";
   redOverlay.style.zIndex = 10;
   redOverlay.style.pointerEvents = "none";
   document.body.appendChild(redOverlay);
 
   document.addEventListener("keydown", (e) => keys[e.key.toLowerCase()] = true);
   document.addEventListener("keyup", (e) => keys[e.key.toLowerCase()] = false);
-}
-
-function createBoxRoom(wallMaterial) {
-  const wallLeft = new THREE.Mesh(new THREE.BoxGeometry(0.1, 3, 20), wallMaterial);
-  wallLeft.position.set(-10, 1.5, 0);
-  scene.add(wallLeft);
-
-  const wallRight = wallLeft.clone();
-  wallRight.position.set(10, 1.5, 0);
-  scene.add(wallRight);
-
-  const wallBack = new THREE.Mesh(new THREE.BoxGeometry(20, 3, 0.1), wallMaterial);
-  wallBack.position.set(0, 1.5, -10);
-  scene.add(wallBack);
-
-  const wallFront = wallBack.clone();
-  wallFront.position.set(0, 1.5, 10);
-  scene.add(wallFront);
 }
 
 function makeCamera(x, y, z, rotY) {
@@ -165,7 +155,7 @@ function makeCamera(x, y, z, rotY) {
 
 function animate() {
   requestAnimationFrame(animate);
-  if (gameStarted && !caught && !transitioning) {
+  if (gameStarted && !caught) {
     handleMovement();
     moveEnemy();
     animateKnife();
@@ -177,7 +167,6 @@ function animate() {
 
 function handleMovement() {
   const speed = 0.1;
-
   const forward = new THREE.Vector3();
   camera.getWorldDirection(forward);
   forward.y = 0;
@@ -205,8 +194,8 @@ function updateCameraDirection() {
   if (keys["arrowright"]) camYaw -= 0.03;
   if (keys["arrowup"]) camPitch += 0.02;
   if (keys["arrowdown"]) camPitch -= 0.02;
-  camPitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camPitch));
 
+  camPitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camPitch));
   const x = Math.cos(camPitch) * Math.sin(camYaw);
   const y = Math.sin(camPitch);
   const z = Math.cos(camPitch) * Math.cos(camYaw);
@@ -223,9 +212,11 @@ function moveEnemy() {
     enemy.position.z += (dz / dist) * 0.045;
   }
 
-  if (dist < 1.3 && !caught) {
+  if (dist < 1.3 && !caught && !isDragging) {
     caught = true;
-    playStabCutscene();
+    isDragging = true;
+    dragTarget.set(0, 0.25, 0);
+    playDragCutscene();
   }
 }
 
@@ -233,39 +224,55 @@ function animateKnife() {
   knife.rotation.z = Math.sin(Date.now() * 0.01) * 0.8;
 }
 
+function playDragCutscene() {
+  let dragInterval = setInterval(() => {
+    enemy.position.lerp(dragTarget, 0.1);
+    camera.position.lerp(dragTarget, 0.1);
+
+    if (enemy.position.distanceTo(dragTarget) < 0.1) {
+      clearInterval(dragInterval);
+      playStabCutscene();
+    }
+  }, 30);
+}
+
 function playStabCutscene() {
   stabSound.play();
-  redOverlay.style.background = "rgba(255, 0, 0, 0.7)";
   setTimeout(() => {
-    redOverlay.style.background = "rgba(255, 0, 0, 0.9)";
+    redOverlay.style.background = "rgba(255, 0, 0, 0.7)";
     setTimeout(() => {
-      redOverlay.style.background = "black";
+      redOverlay.style.background = "rgba(255, 0, 0, 0.8)";
       setTimeout(() => {
-        alert("You were stabbed by the teacher...");
-        window.location.reload();
-      }, 1000);
+        redOverlay.style.background = "rgba(255, 0, 0, 1)";
+        fadeToBlack(() => {
+          alert("You were stabbed by the teacher in surgery detention...");
+          window.location.reload();
+        });
+      }, 500);
     }, 500);
   }, 500);
 }
 
 function checkWinCondition() {
-  if (camera.position.distanceTo(winDoor.position) < 1 && !transitioning) {
-    transitioning = true;
-    redOverlay.style.transition = "1s ease";
-    redOverlay.style.background = "black";
-    setTimeout(() => {
-      if (level === 1) {
-        alert("You beat Level 1! Now it's time for Level 2...");
+  if (camera.position.distanceTo(winDoor.position) < 1 && !caught) {
+    if (level === 1) {
+      fadeToBlack(() => {
+        alert("You beat Level 1. Now it's time for Level 2...");
         level = 2;
-        caught = false;
         scene.clear();
         init();
-        redOverlay.style.background = "rgba(0, 0, 0, 0)";
-        transitioning = false;
-      } else {
+        redOverlay.style.transition = "none";
+        redOverlay.style.background = "black";
+        setTimeout(() => {
+          redOverlay.style.transition = "1s ease";
+          redOverlay.style.background = "rgba(0, 0, 0, 0)";
+        }, 100);
+      });
+    } else {
+      fadeToBlack(() => {
         alert("You escaped Surgery Detention!");
         window.location.reload();
-      }
-    }, 1500);
+      });
+    }
   }
 }
