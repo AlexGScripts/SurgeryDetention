@@ -5,6 +5,7 @@ let caught = false;
 let level = 1;
 let isDragging = false;
 let dragTarget = new THREE.Vector3(0, 0, 0);
+let winConditionMet = false;
 
 let camYaw = 0;
 let camPitch = 0;
@@ -263,7 +264,7 @@ function fadeToBlack() {
     if (level === 1 && caught) {
       alert("You were stabbed by the teacher in surgery detention...");
       window.location.reload(); // Reloads the page to reset to Level 1
-    } else if (level === 1) {
+    } else if (level === 1 && !winConditionMet) {
       alert("Level 1 beaten! Moving to Level 2...");
       level = 2; // Proceed to Level 2 after passing Level 1
       scene.clear();
@@ -276,7 +277,8 @@ function fadeToBlack() {
 }
 
 function checkWinCondition() {
-  if (camera.position.distanceTo(winDoor.position) < 1) {
+  if (camera.position.distanceTo(winDoor.position) < 1 && !winConditionMet) {
+    winConditionMet = true;
     fadeToBlack();
   }
 }
