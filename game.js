@@ -69,7 +69,7 @@ function init() {
   wallFront.position.set(0, 1.5, 10);
   scene.add(wallFront);
 
-  if (level === 1 || level === 2) {
+  if (level === 1) {
     for (let i = -8; i <= 8; i += 2.5) {
       scene.add(makeCamera(-9.8, 2.5, i, Math.PI / 2));
       scene.add(makeCamera(9.8, 2.5, i, -Math.PI / 2));
@@ -77,40 +77,35 @@ function init() {
       scene.add(makeCamera(i, 2.5, 9.8, Math.PI));
     }
 
-    winDoor = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.1), new THREE.MeshStandardMaterial({ color: level === 1 ? 0x00ff00 : 0xff0000 }));
+    winDoor = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.1), new THREE.MeshStandardMaterial({ color: 0x00ff00 }));
     winDoor.position.set(0, 1, -9.95);
     scene.add(winDoor);
 
-    // Improved hospital bed
-    const bedGroup = new THREE.Group();
+    const bed = new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 2), new THREE.MeshStandardMaterial({ color: 0xaaaaaa }));
+    bed.position.set(0, 0.25, 0);
+    scene.add(bed);
+  } else if (level === 2) {
+    const newFloor = new THREE.Mesh(new THREE.BoxGeometry(20, 0.1, 20), new THREE.MeshStandardMaterial({ color: 0x555555 }));
+    scene.add(newFloor);
 
-    const mattress = new THREE.Mesh(
-      new THREE.BoxGeometry(4, 0.4, 2),
-      new THREE.MeshStandardMaterial({ color: 0xdddddd })
-    );
-    mattress.position.y = 0.4;
-    bedGroup.add(mattress);
+    const newCeiling = new THREE.Mesh(new THREE.BoxGeometry(20, 0.1, 20), new THREE.MeshStandardMaterial({ color: 0x222222 }));
+    newCeiling.position.y = 3;
+    scene.add(newCeiling);
 
-    const headboard = new THREE.Mesh(
-      new THREE.BoxGeometry(0.2, 1, 2),
-      new THREE.MeshStandardMaterial({ color: 0x999999 })
-    );
-    headboard.position.set(-2.1, 0.8, 0);
-    bedGroup.add(headboard);
-
-    for (let x = -1.8; x <= 1.8; x += 3.6) {
-      for (let z = -0.8; z <= 0.8; z += 1.6) {
-        const leg = new THREE.Mesh(
-          new THREE.BoxGeometry(0.1, 0.4, 0.1),
-          new THREE.MeshStandardMaterial({ color: 0x555555 })
-        );
-        leg.position.set(x, 0.2, z);
-        bedGroup.add(leg);
-      }
+    for (let i = -8; i <= 8; i += 2.5) {
+      scene.add(makeCamera(-9.8, 2.5, i, Math.PI / 2));
+      scene.add(makeCamera(9.8, 2.5, i, -Math.PI / 2));
+      scene.add(makeCamera(i, 2.5, -9.8, 0));
+      scene.add(makeCamera(i, 2.5, 9.8, Math.PI));
     }
 
-    bedGroup.position.set(0, 0, 0);
-    scene.add(bedGroup);
+    winDoor = new THREE.Mesh(new THREE.BoxGeometry(1, 2, 0.1), new THREE.MeshStandardMaterial({ color: 0xff0000 }));
+    winDoor.position.set(0, 1, -9.95);
+    scene.add(winDoor);
+
+    const bed = new THREE.Mesh(new THREE.BoxGeometry(4, 0.5, 2), new THREE.MeshStandardMaterial({ color: 0xaaaaaa }));
+    bed.position.set(0, 0.25, 0);
+    scene.add(bed);
   }
 
   enemy = new THREE.Group();
@@ -239,7 +234,7 @@ function playDragCutscene() {
   let dragInterval = setInterval(() => {
     enemy.position.lerp(dragTarget, 0.1);
     camera.position.lerp(dragTarget, 0.1);
-
+    
     if (enemy.position.distanceTo(dragTarget) < 0.1) {
       clearInterval(dragInterval);
       playStabCutscene();
@@ -249,53 +244,39 @@ function playDragCutscene() {
 
 function playStabCutscene() {
   stabSound.play();
-  let angle = 0;
-  const tiltInterval = setInterval(() => {
-    angle += 0.02;
-    camera.rotation.z = angle;
-    if (angle >= Math.PI / 4) {
-      clearInterval(tiltInterval);
-      redOverlay.style.transition = "2s ease";
-      redOverlay.style.background = "black";
+  setTimeout(() => {
+    redOverlay.style.background = "rgba(255, 0, 0, 0.7)";
+    setTimeout(() => {
+      redOverlay.style.background = "rgba(255, 0, 0, 0.8)";
       setTimeout(() => {
-        if (level === 1) {
-          alert("Level 1 beaten! Moving to Level 2...");
-          level = 2;
-          scene.clear();
-          init();
-        } else {
-          alert("You were stabbed by the teacher in surgery detention...");
-          window.location.reload();
-        }
-      }, 2000);
-    }
-  }, 30);
-}
-
-function checkWinCondition() {
-  const winDistance = 1.2;
-  if (camera.position.distanceTo(winDoor.position) < winDistance) {
-    if (level === 1) {
-      fadeToBlack();
-    } else {
-      alert("You escaped Surgery Detention!");
-      window.location.reload();
-    }
-  }
+        redOverlay.style.background = "rgba(255, 0, 0, 1)";
+        fadeToBlack();
+      }, 500);
+    }, 500);
+  }, 500);
 }
 
 function fadeToBlack() {
   redOverlay.style.transition = "1s ease";
   redOverlay.style.background = "black";
   setTimeout(() => {
-    if (level === 1) {
-      alert("Level 1 beaten! Moving to Level 2...");
-      level = 2;
-      scene.clear();
-      init();
-    } else {
+    if (level === 1 && caught) {
       alert("You were stabbed by the teacher in surgery detention...");
+      window.location.reload(); // Reloads the page to reset to Level 1
+    } else if (level === 1) {
+      alert("Level 1 beaten! Moving to Level 2...");
+      level = 2; // Proceed to Level 2 after passing Level 1
+      scene.clear();
+      init(); // Initialize Level 2
+    } else {
+      alert("You escaped Surgery Detention!");
       window.location.reload();
     }
   }, 1500);
+}
+
+function checkWinCondition() {
+  if (camera.position.distanceTo(winDoor.position) < 1) {
+    fadeToBlack();
+  }
 }
