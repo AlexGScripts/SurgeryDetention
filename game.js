@@ -10,6 +10,9 @@ let camYaw = 0;
 let camPitch = 0;
 let winDoor;
 
+document.addEventListener("keydown", (e) => keys[e.key.toLowerCase()] = true);
+document.addEventListener("keyup", (e) => keys[e.key.toLowerCase()] = false);
+
 function startGame() {
   document.getElementById("overlay").style.display = "none";
   gameStarted = true;
@@ -18,6 +21,7 @@ function startGame() {
 }
 
 function init() {
+  // Reset globals
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x111111);
 
@@ -139,9 +143,6 @@ function init() {
   redOverlay.style.zIndex = 10;
   redOverlay.style.pointerEvents = "none";
   document.body.appendChild(redOverlay);
-
-  document.addEventListener("keydown", (e) => keys[e.key.toLowerCase()] = true);
-  document.addEventListener("keyup", (e) => keys[e.key.toLowerCase()] = false);
 }
 
 function makeCamera(x, y, z, rotY) {
@@ -236,7 +237,7 @@ function playDragCutscene() {
     enemy.position.lerp(dragTarget, 0.1);
     camera.position.lerp(dragTarget, 0.1);
     
-    if (enemy.position.distanceTo(dragTarget) < 0.1) {
+    if (enemy.position.distanceTo(dragTarget) < 0.2) {
       clearInterval(dragInterval);
       playStabCutscene();
     }
@@ -244,7 +245,9 @@ function playDragCutscene() {
 }
 
 function playStabCutscene() {
-  stabSound.play();
+  if (stabSound.buffer) {
+    stabSound.play();
+  }
   setTimeout(() => {
     redOverlay.style.background = "rgba(255, 0, 0, 0.7)";
     setTimeout(() => {
