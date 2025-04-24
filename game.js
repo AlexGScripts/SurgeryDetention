@@ -47,7 +47,7 @@ function init() {
   const floor = new THREE.Mesh(new THREE.BoxGeometry(20, 0.1, 20), new THREE.MeshStandardMaterial({ color: 0x333333 }));
   scene.add(floor);
 
-  const ceiling = new THREE.Mesh(new THREE.BoxGeometry(20, 0.1, 20), new THREE.MeshStandardMaterial({ color: #FFFFFF }));
+  const ceiling = new THREE.Mesh(new THREE.BoxGeometry(20, 0.1, 20), new THREE.MeshStandardMaterial({ color: #0x333333 }));
   ceiling.position.y = 3;
   scene.add(ceiling);
 
